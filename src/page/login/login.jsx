@@ -129,7 +129,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#fff',
+    background: 'transparent',
     position: 'relative',
     overflow: 'hidden',
     padding: 16,
@@ -137,8 +137,11 @@ const styles = {
   gradientBg: {
     position: 'absolute',
     inset: 0,
+    // Add a base (non-transparent) background to avoid showing white
     background:
-      'radial-gradient(1200px 400px at -10% 60%, rgba(255,127,80,0.15), transparent 60%), radial-gradient(900px 400px at 110% -10%, rgba(255,165,0,0.15), transparent 60%)',
+      'radial-gradient(1200px 400px at -10% 60%, rgba(255,127,80,0.18), transparent 60%), ' +
+      'radial-gradient(900px 400px at 110% -10%, rgba(255,165,0,0.18), transparent 60%), ' +
+      'linear-gradient(180deg, #FFF5EC 0%, #FFE7D3 55%, #FFF5EC 100%)',
     pointerEvents: 'none',
   },
   card: {
