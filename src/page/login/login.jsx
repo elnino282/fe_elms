@@ -6,15 +6,38 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
+    setFieldErrors({});
     try {
-      // TODO: replace with real auth call
-      await new Promise((r) => setTimeout(r, 800));
-      // console.log({ email, password });
+      const res = await fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Backend expects 'username'
+        body: JSON.stringify({ username: email, password }),
+      });
+      if (!res.ok) {
+        let msg = `Login failed (${res.status})`;
+        try {
+          const data = await res.json();
+          msg = data?.message || data?.error || msg;
+          if (data?.data && typeof data.data === 'object') {
+            setFieldErrors(data.data);
+          }
+        } catch {}
+        setError(msg);
+        return;
+      }
+      const data = await res.json();
+      if (data?.token) {
+        localStorage.setItem('auth_token', data.token);
+      }
       navigate('/my-page');
     } finally {
       setLoading(false);
@@ -46,6 +69,9 @@ export default function LoginPage() {
               required
             />
           </div>
+          {fieldErrors?.username ? (
+            <div style={styles.fieldError}>{String(fieldErrors.username)}</div>
+          ) : null}
 
           <label style={{ ...styles.label, marginTop: 14 }}>Password</label>
           <div style={styles.inputWrap}>
@@ -67,6 +93,9 @@ export default function LoginPage() {
               {showPassword ? eyeOffIcon : eyeIcon}
             </button>
           </div>
+          {fieldErrors?.password ? (
+            <div style={styles.fieldError}>{String(fieldErrors.password)}</div>
+          ) : null}
 
           <button type="submit" style={styles.signInBtn} disabled={loading}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -75,7 +104,9 @@ export default function LoginPage() {
             </span>
           </button>
         </form>
-
+        {error ? (
+          <div style={styles.errorBox}>{error}</div>
+        ) : null}
       </div>
     </div>
   );
@@ -205,6 +236,20 @@ const styles = {
     color: '#374151',
     padding: 12,
     lineHeight: 1.6,
+  },
+  errorBox: {
+    marginTop: 16,
+    color: '#b91c1c',
+    background: '#fee2e2',
+    border: '1px solid #fecaca',
+    padding: '10px 12px',
+    borderRadius: 8,
+    fontSize: 14,
+  },
+  fieldError: {
+    color: '#b91c1c',
+    marginTop: 6,
+    fontSize: 12,
   },
 };
 

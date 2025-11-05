@@ -30,12 +30,13 @@ export default function MyPage() {
 
         <div style={styles.infoGrid}>
           <div style={styles.infoCol}>
-            <InfoItem icon={idIcon} label="Full Name" value={user.fullName} />
+            <InfoItem icon={personIcon} label="Full Name" value={user.fullName} />
+            <InfoItem icon={idIcon} label="User ID" value={user.employeeId} />
             <InfoItem icon={mailIcon} label="Email" value={user.email} />
           </div>
           <div style={{ ...styles.infoCol, ...styles.infoColRight }}>
-            <InfoItem icon={badgeIcon} label="Department" value={user.department} />
-            <InfoItem icon={phoneIcon} label="Position" value={user.position} />
+            <InfoItem icon={deptIcon} label="Department" value={user.department} />
+            <InfoItem icon={wrenchIcon} label="Position" value={user.position} />
           </div>
         </div>
       </div>
@@ -69,7 +70,7 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #fde68a'
   },
   avatarIcon: { color: '#fb923c' },
-  name: { fontSize: 18, fontWeight: 700, color: '#111827' },
+  name: { fontSize: 18, fontWeight: 'normal', color: '#111827' },
   subtitle: { color: '#6b7280', marginTop: 4 },
   hr: { border: 0, borderTop: '1px solid #e5e7eb', margin: '16px 0' },
   sectionTitle: { fontWeight: 700, color: '#111827', marginBottom: 12 },
@@ -77,9 +78,9 @@ const styles = {
     display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0,
     border: '1px solid #eef2f7', borderRadius: 10, overflow: 'hidden'
   },
-  infoCol: { padding: 16, display: 'grid', gap: 14 },
+  infoCol: { padding: 16, display: 'grid', gap: 26 },
   infoColRight: { borderLeft: '1px solid #eef2f7' },
-  itemRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  itemRow: { display: 'flex', alignItems: 'center', gap: 18 },
   iconBadge: {
     width: 36, height: 36, borderRadius: 8, background: '#fff7ed',
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fb923c',
@@ -87,11 +88,19 @@ const styles = {
   },
   iconBadgeInner: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 },
   itemLabel: { color: '#6b7280', fontSize: 12 },
-  itemValue: { color: '#111827', fontWeight: 600 },
+  itemValue: { color: '#111827', fontWeight: 'normal' },
 };
 
 const userIcon = (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21a8 8 0 1 0-16 0" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+// Person outline icon for "Full Name"
+const personIcon = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21a8 8 0 1 0-16 0" />
     <circle cx="12" cy="7" r="4" />
   </svg>
@@ -138,5 +147,15 @@ const calendarIcon = (
 const phoneIcon = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 16.92V21a1 1 0 0 1-1.09 1A19.86 19.86 0 0 1 3 5.09 1 1 0 0 1 4 4h4.09a1 1 0 0 1 1 .75l1 3a1 1 0 0 1-.27 1L8.91 10.09a16 16 0 0 0 5 5l1.34-1.34a1 1 0 0 1 1-.27l3 1a1 1 0 0 1 .75 1z" />
+  </svg>
+);
+
+// Diagonal pushpin icon for "Position"
+const wrenchIcon = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <g transform="rotate(45 12 12)">
+      <path d="M12 17v5" />
+      <path d="M5 3 L19 3 L12 10 L12 17" />
+    </g>
   </svg>
 );
