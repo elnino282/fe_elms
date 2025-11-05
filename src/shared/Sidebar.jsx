@@ -7,7 +7,7 @@ export default function Sidebar() {
   const nav = [
     { label: 'My Page', to: '/my-page', icon: <PiHouse size={20} /> },
     { label: 'Resignation', to: '/resignation', icon: <PiUserMinus size={20} /> },
-    { label: 'Approval Management', to: '/approval', icon: <PiCheckSquare size={20} /> },
+    { label: 'Approval Management', to: '/approval-management', icon: <PiCheckSquare size={20} /> },
   ];
 
   return (
