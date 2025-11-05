@@ -73,13 +73,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={styles.demoWrap}>
-          <div style={styles.demoLabel}>Demo Credentials:</div>
-          <div style={styles.credBox}>
-            <div><b>Email:</b> nguyen.vana@company.com</div>
-            <div><b>Password:</b> password</div>
-          </div>
-        </div>
       </div>
     </div>
   );
