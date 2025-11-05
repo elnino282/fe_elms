@@ -1,6 +1,7 @@
 import React from 'react';
 import './App.css';
 import LoginPage from './page/login/login.jsx';
+import MyPage from './page/mypage/MyPage.jsx';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 function App() {
@@ -8,12 +9,9 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
-
-      {/* Example future page */}
-      <Route path="/dashboard" element={<Dashboard />} />
-
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
+      <Route path="/my-page" element={<MyPage />} />
+      {/* 404 fallback to login for now */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

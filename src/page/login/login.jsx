@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -13,6 +15,7 @@ export default function LoginPage() {
       // TODO: replace with real auth call
       await new Promise((r) => setTimeout(r, 800));
       // console.log({ email, password });
+      navigate('/my-page');
     } finally {
       setLoading(false);
     }
