@@ -11,7 +11,7 @@ export default function Sidebar() {
     { label: 'My Page', to: '/my-page', icon: <PiHouse size={20} /> },
     { label: 'Request Leave', to: '/request-leave', icon: <PiUserMinus size={20} /> },
     ...(role === 'ADMIN'
-      ? [{ label: 'Leave Management', to: '/approval-management', icon: <PiCheckSquare size={20} /> }]
+      ? [{ label: 'Leave Management', to: '/leave-management', icon: <PiCheckSquare size={20} /> }]
       : []),
   ];
 

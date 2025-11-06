@@ -1,6 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
+// Helper function to format dates to Vietnamese format (DD/MM/YYYY)
+const formatDate = (isoDate) => {
+  if (!isoDate) return 'N/A';
+  const date = new Date(isoDate);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// Helper function to get status badge styling based on status
+const getStatusBadgeStyle = (status) => {
+  const baseStyle = {
+    padding: '4px 12px',
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: 500,
+    display: 'inline-block',
+  };
+
+  switch (status) {
+    case 'PENDING':
+      return {
+        ...baseStyle,
+        background: '#fef3c7',
+        color: '#92400e',
+      };
+    case 'APPROVED':
+      return {
+        ...baseStyle,
+        background: '#d1fae5',
+        color: '#065f46',
+      };
+    case 'REJECTED':
+      return {
+        ...baseStyle,
+        background: '#fee2e2',
+        color: '#991b1b',
+      };
+    default:
+      return {
+        ...baseStyle,
+        background: '#f3f4f6',
+        color: '#374151',
+      };
+  }
+};
+
 export default function RequestLeave() {
   const [leaveBalance, setLeaveBalance] = useState({ usedDays: 0, totalDays: 0 });
   const [loading, setLoading] = useState(true);
@@ -18,7 +66,17 @@ export default function RequestLeave() {
   const fetchLeaveBalance = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch('http://localhost:8080/api/leave-balances/my-balance', {
+      const employeeId = localStorage.getItem('employee_id');
+      
+      if (!employeeId) {
+        console.error('No employee ID found in localStorage');
+        setLeaveBalance({ usedDays: 0, totalDays: 12 });
+        setLoading(false);
+        return;
+      }
+      
+      const currentYear = new Date().getFullYear();
+      const res = await fetch(`http://localhost:8080/api/leave-balances/my-balance?employeeId=${employeeId}&year=${currentYear}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -26,19 +84,22 @@ export default function RequestLeave() {
       });
       
       if (res.ok) {
-        const data = await res.json();
+        const response = await res.json();
+        // Parse the nested response structure
+        const balanceData = response.data;
         setLeaveBalance({
-          usedDays: data.usedDays || 3,
-          totalDays: data.totalDays || 12
+          usedDays: balanceData.used || 0,
+          totalDays: balanceData.entitlement || 12
         });
       } else {
         // Fallback to demo data
-        setLeaveBalance({ usedDays: 3, totalDays: 12 });
+        console.error('Failed to fetch leave balance:', res.status);
+        setLeaveBalance({ usedDays: 0, totalDays: 12 });
       }
     } catch (error) {
       console.error('Error fetching leave balance:', error);
       // Fallback to demo data
-      setLeaveBalance({ usedDays: 3, totalDays: 12 });
+      setLeaveBalance({ usedDays: 0, totalDays: 12 });
     } finally {
       setLoading(false);
     }
@@ -48,12 +109,33 @@ export default function RequestLeave() {
     try {
       setRequestsLoading(true);
       const token = localStorage.getItem('auth_token');
-      // Note: This endpoint would need employeeId, keeping empty for now as we only submit
-      // In a real implementation, you'd call the appropriate GET endpoint here
-      setLeaveRequests([]);
-      setLeaveHistory([]);
+      const employeeIdCode = localStorage.getItem('employee_id_code') || 'EMP004';
+      
+      const res = await fetch(`http://localhost:8080/api/leave-requests/my-requests?employeeIdCode=${employeeIdCode}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (res.ok) {
+        const response = await res.json();
+        const data = response.data || [];
+        
+        // Separate PENDING from APPROVED/REJECTED
+        const pending = data.filter(item => item.status === 'PENDING');
+        const history = data.filter(item => item.status === 'APPROVED' || item.status === 'REJECTED');
+        
+        setLeaveRequests(pending);
+        setLeaveHistory(history);
+      } else {
+        setLeaveRequests([]);
+        setLeaveHistory([]);
+      }
     } catch (error) {
       console.error('Error fetching leave requests:', error);
+      setLeaveRequests([]);
+      setLeaveHistory([]);
     } finally {
       setRequestsLoading(false);
     }
@@ -84,8 +166,9 @@ export default function RequestLeave() {
 
       const data = await res.json();
       
-      // Refresh leave requests after successful submission
+      // Refresh leave requests and balance after successful submission
       await fetchLeaveRequests();
+      await fetchLeaveBalance();
       
       return data;
     } catch (error) {
@@ -124,18 +207,32 @@ export default function RequestLeave() {
             </tr>
           </thead>
           <tbody>
-            {leaveRequests.map((request, index) => (
-              <tr key={request.id} style={styles.bodyRow}>
-                <td style={styles.td}>{index + 1}</td>
-                <td style={styles.td}>{request.dateOfRequest}</td>
-                <td style={styles.td}>{request.startDate}</td>
-                <td style={styles.td}>{request.endDate}</td>
-                <td style={styles.td}>{request.reason}</td>
-                <td style={styles.td}>
-                  <span style={styles.statusBadge}>{request.status}</span>
+            {requestsLoading ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px'}}>
+                  Loading...
                 </td>
               </tr>
-            ))}
+            ) : leaveRequests.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px', color: '#6b7280'}}>
+                  No pending leave requests
+                </td>
+              </tr>
+            ) : (
+              leaveRequests.map((request, index) => (
+                <tr key={request.id} style={styles.bodyRow}>
+                  <td style={styles.td}>{index + 1}</td>
+                  <td style={styles.td}>{formatDate(request.createdAt)}</td>
+                  <td style={styles.td}>{formatDate(request.startDate)}</td>
+                  <td style={styles.td}>{formatDate(request.endDate)}</td>
+                  <td style={styles.td}>{request.reason}</td>
+                  <td style={styles.td}>
+                    <span style={getStatusBadgeStyle(request.status)}>{request.status}</span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
         <div style={styles.pagination}>
@@ -161,16 +258,30 @@ export default function RequestLeave() {
             </tr>
           </thead>
           <tbody>
-            {leaveHistory.map((history, index) => (
-              <tr key={history.id} style={styles.bodyRow}>
-                <td style={styles.td}>{index + 1}</td>
-                <td style={styles.td}>{history.dateOfRequest}</td>
-                <td style={styles.td}>{history.startDate}</td>
-                <td style={styles.td}>{history.endDate}</td>
-                <td style={styles.td}>{history.reason}</td>
-                <td style={styles.td}>{history.approvedBy}</td>
+            {requestsLoading ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px'}}>
+                  Loading...
+                </td>
               </tr>
-            ))}
+            ) : leaveHistory.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px', color: '#6b7280'}}>
+                  No leave history available
+                </td>
+              </tr>
+            ) : (
+              leaveHistory.map((history, index) => (
+                <tr key={history.id} style={styles.bodyRow}>
+                  <td style={styles.td}>{index + 1}</td>
+                  <td style={styles.td}>{formatDate(history.createdAt)}</td>
+                  <td style={styles.td}>{formatDate(history.startDate)}</td>
+                  <td style={styles.td}>{formatDate(history.endDate)}</td>
+                  <td style={styles.td}>{history.reason}</td>
+                  <td style={styles.td}>{history.approvedByName || 'N/A'}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
         <div style={styles.pagination}>
