@@ -49,6 +49,37 @@ const getStatusBadgeStyle = (status) => {
   }
 };
 
+// Helper function to calculate weekdays (Monday-Friday) between two dates
+const calculateWeekdays = (fromDate, toDate) => {
+  if (!fromDate || !toDate) return 0;
+  
+  const start = new Date(fromDate);
+  const end = new Date(toDate);
+  
+  // Reset time to midnight for accurate calculation
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  
+  // If end date is before start date, return 0
+  if (end < start) return 0;
+  
+  let weekdayCount = 0;
+  const currentDate = new Date(start);
+  
+  // Loop through each day from start to end (inclusive)
+  while (currentDate <= end) {
+    const dayOfWeek = currentDate.getDay();
+    // Count only Monday (1) to Friday (5)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      weekdayCount++;
+    }
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return weekdayCount;
+};
+
 export default function RequestLeave() {
   const [leaveBalance, setLeaveBalance] = useState({ usedDays: 0, totalDays: 0 });
   const [loading, setLoading] = useState(true);
@@ -57,6 +88,11 @@ export default function RequestLeave() {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  
+  // Pagination state
+  const [requestsPage, setRequestsPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const pageSize = 2; // Match Resignation page size
 
   useEffect(() => {
     fetchLeaveBalance();
@@ -177,6 +213,18 @@ export default function RequestLeave() {
     }
   };
 
+  // Calculate pagination for Leave Request table
+  const requestsTotalPages = Math.max(1, Math.ceil(leaveRequests.length / pageSize));
+  const requestsSafePage = Math.min(requestsPage, requestsTotalPages);
+  const requestsStart = (requestsSafePage - 1) * pageSize;
+  const requestsPageData = leaveRequests.slice(requestsStart, requestsStart + pageSize);
+
+  // Calculate pagination for Leave History table
+  const historyTotalPages = Math.max(1, Math.ceil(leaveHistory.length / pageSize));
+  const historySafePage = Math.min(historyPage, historyTotalPages);
+  const historyStart = (historySafePage - 1) * pageSize;
+  const historyPageData = leaveHistory.slice(historyStart, historyStart + pageSize);
+
   return (
     <MainLayout title="Request Leave" breadcrumb={[]}>
       <div style={styles.topBar}>
@@ -220,9 +268,9 @@ export default function RequestLeave() {
                 </td>
               </tr>
             ) : (
-              leaveRequests.map((request, index) => (
+              requestsPageData.map((request, index) => (
                 <tr key={request.id} style={styles.bodyRow}>
-                  <td style={styles.td}>{index + 1}</td>
+                  <td style={styles.td}>{requestsStart + index + 1}</td>
                   <td style={styles.td}>{formatDate(request.createdAt)}</td>
                   <td style={styles.td}>{formatDate(request.startDate)}</td>
                   <td style={styles.td}>{formatDate(request.endDate)}</td>
@@ -235,12 +283,42 @@ export default function RequestLeave() {
             )}
           </tbody>
         </table>
-        <div style={styles.pagination}>
-          <button style={styles.paginationBtn} disabled>Previous</button>
-          <button style={{...styles.paginationBtn, ...styles.paginationActive}}>1</button>
-          <button style={styles.paginationBtn}>2</button>
-          <button style={styles.paginationBtn}>Next</button>
-        </div>
+        {leaveRequests.length > 0 && (
+          <div style={styles.pagination}>
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(requestsSafePage === 1 ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setRequestsPage(Math.max(1, requestsSafePage - 1))}
+              disabled={requestsSafePage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({length: requestsTotalPages}, (_, i) => i + 1).map(p => (
+              <button 
+                key={p}
+                style={{
+                  ...styles.paginationBtn,
+                  ...(p === requestsSafePage ? styles.paginationActive : {})
+                }}
+                onClick={() => setRequestsPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(requestsSafePage === requestsTotalPages ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setRequestsPage(Math.min(requestsTotalPages, requestsSafePage + 1))}
+              disabled={requestsSafePage === requestsTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Leave History Section */}
@@ -271,9 +349,9 @@ export default function RequestLeave() {
                 </td>
               </tr>
             ) : (
-              leaveHistory.map((history, index) => (
+              historyPageData.map((history, index) => (
                 <tr key={history.id} style={styles.bodyRow}>
-                  <td style={styles.td}>{index + 1}</td>
+                  <td style={styles.td}>{historyStart + index + 1}</td>
                   <td style={styles.td}>{formatDate(history.createdAt)}</td>
                   <td style={styles.td}>{formatDate(history.startDate)}</td>
                   <td style={styles.td}>{formatDate(history.endDate)}</td>
@@ -284,12 +362,42 @@ export default function RequestLeave() {
             )}
           </tbody>
         </table>
-        <div style={styles.pagination}>
-          <button style={styles.paginationBtn} disabled>Previous</button>
-          <button style={{...styles.paginationBtn, ...styles.paginationActive}}>1</button>
-          <button style={styles.paginationBtn}>2</button>
-          <button style={styles.paginationBtn}>Next</button>
-        </div>
+        {leaveHistory.length > 0 && (
+          <div style={styles.pagination}>
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(historySafePage === 1 ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setHistoryPage(Math.max(1, historySafePage - 1))}
+              disabled={historySafePage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({length: historyTotalPages}, (_, i) => i + 1).map(p => (
+              <button 
+                key={p}
+                style={{
+                  ...styles.paginationBtn,
+                  ...(p === historySafePage ? styles.paginationActive : {})
+                }}
+                onClick={() => setHistoryPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(historySafePage === historyTotalPages ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setHistoryPage(Math.min(historyTotalPages, historySafePage + 1))}
+              disabled={historySafePage === historyTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Request Leave Modal */}
@@ -305,6 +413,7 @@ export default function RequestLeave() {
               alert('Failed to submit leave request: ' + error.message);
             }
           }}
+          leaveBalance={leaveBalance}
         />
       )}
 
@@ -332,12 +441,35 @@ function SuccessPopup({ onClose }) {
   );
 }
 
-function RequestLeaveModal({ onClose, onSubmit }) {
+function RequestLeaveModal({ onClose, onSubmit, leaveBalance }) {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [error, setError] = useState('');
+  const [balanceError, setBalanceError] = useState('');
+  const [isExceeded, setIsExceeded] = useState(false);
+
+  // Calculate requested days and validate against balance
+  useEffect(() => {
+    if (fromDate && toDate) {
+      const requestedDays = calculateWeekdays(fromDate, toDate);
+      const remainingDays = leaveBalance.totalDays - leaveBalance.usedDays;
+      
+      if (requestedDays > remainingDays) {
+        setBalanceError(
+          
+        );
+        setIsExceeded(true);
+      } else {
+        setBalanceError('');
+        setIsExceeded(false);
+      }
+    } else {
+      setBalanceError('');
+      setIsExceeded(false);
+    }
+  }, [fromDate, toDate, leaveBalance]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -353,6 +485,15 @@ function RequestLeaveModal({ onClose, onSubmit }) {
     
     if (to < from) {
       setError('End date must be after start date');
+      return;
+    }
+
+    // Validate leave balance
+    const requestedDays = calculateWeekdays(fromDate, toDate);
+    const remainingDays = leaveBalance.totalDays - leaveBalance.usedDays;
+    
+    if (requestedDays > remainingDays) {
+      setError('Cannot submit. You have exceeded your available leave days.');
       return;
     }
 
@@ -397,6 +538,7 @@ function RequestLeaveModal({ onClose, onSubmit }) {
             </div>
             
             {error && <div style={styles.errorText}>* {error}</div>}
+            {isExceeded && <div style={styles.errorText}>*leave day exceeded</div>}
           </div>
 
           <div style={styles.modalSection}>
@@ -426,13 +568,19 @@ function RequestLeaveModal({ onClose, onSubmit }) {
               style={styles.textarea}
               rows={4}
             />
+            
+            {balanceError && <div style={styles.errorText}>* {balanceError}</div>}
           </div>
 
           <div style={styles.modalActions}>
             <button type="button" onClick={onClose} style={styles.cancelBtn}>
               Cancel
             </button>
-            <button type="submit" style={styles.submitBtn}>
+            <button 
+              type="submit" 
+              style={isExceeded ? styles.submitBtnDisabled : styles.submitBtn}
+              disabled={isExceeded}
+            >
               Submit Request
             </button>
           </div>
@@ -677,6 +825,18 @@ const styles = {
     color: '#fff',
     cursor: 'pointer',
     boxShadow: '0 2px 4px rgba(255, 106, 0, 0.2)',
+  },
+  submitBtnDisabled: {
+    background: '#ff6a00',
+    border: 'none',
+    borderRadius: 8,
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#fff',
+    cursor: 'not-allowed',
+    boxShadow: '0 2px 4px rgba(255, 106, 0, 0.2)',
+    opacity: 0.6,
   },
   
   // Success Popup styles
