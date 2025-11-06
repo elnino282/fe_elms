@@ -75,7 +75,7 @@ export default function Resignation() {
   const pageData = requests.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
 
   return (
-    <MainLayout title="Resignation" breadcrumb={["Request Leave"]}>
+    <MainLayout title="Resignation">
       <div style={styles.toolbarRow}>
         <div style={styles.totalCard}>
           <div>Total day off: <strong>{String(usedDays).padStart(2, '0')}</strong> days / <strong>{totalAllowance}</strong> days</div>

@@ -11,7 +11,7 @@ export default function MainLayout({ title, children, breadcrumb = [] }) {
         <div style={styles.contentWrap}>
           {breadcrumb.length > 0 && (
             <div style={styles.breadcrumb}>
-              {['Trang chủ', ...breadcrumb].map((b, i, arr) => (
+              {breadcrumb.map((b, i, arr) => (
                 <React.Fragment key={`${b}-${i}`}>
                   <span style={styles.bcText}>{b}</span>
                   {i < arr.length - 1 && <span aria-hidden style={styles.bcSep}>›</span>}
