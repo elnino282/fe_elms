@@ -3,6 +3,7 @@ import './App.css';
 import LoginPage from './page/login/login.jsx';
 import MyPage from './page/mypage/MyPage.jsx';
 import ApprovalManagement from './page/approval_management/approval_management.jsx';
+import Resignation from './page/resignation/Resignation.jsx';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/my-page" element={<MyPage />} />
+      <Route path="/resignation" element={<Resignation />} />
       <Route path="/approval-management" element={<ApprovalManagement />} />
       {/* 404 fallback to login for now */}
       <Route path="*" element={<Navigate to="/login" replace />} />
