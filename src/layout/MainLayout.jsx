@@ -7,7 +7,7 @@ export default function MainLayout({ title, children, breadcrumb = [] }) {
     <div style={styles.appWrap}>
       <Sidebar />
       <div style={styles.mainCol}>
-        <Topbar />
+        <Topbar title={title} />
         <div style={styles.contentWrap}>
           {breadcrumb.length > 0 && (
             <div style={styles.breadcrumb}>
@@ -19,7 +19,6 @@ export default function MainLayout({ title, children, breadcrumb = [] }) {
               ))}
             </div>
           )}
-          {title ? <h2 style={styles.pageTitle}>{title}</h2> : null}
           {children}
         </div>
       </div>

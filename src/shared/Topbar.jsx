@@ -1,11 +1,10 @@
 import React from 'react';
 
-export default function Topbar() {
+export default function Topbar({ title }) {
   return (
     <header style={styles.header}>
-      <div />
+      <div style={styles.title}>{title}</div>
       <div style={styles.rightWrap}>
-        <button style={styles.iconBtn} aria-label="notifications"><span style={styles.iconInner}>{bellIcon}</span></button>
         <div style={styles.userPill}>
           <div style={styles.avatar}>A</div>
           <div style={styles.userName}>A Nguyen Van</div>
@@ -29,6 +28,7 @@ const styles = {
     top: 0,
     zIndex: 10,
   },
+  title: { color: '#111827', fontSize: 18, fontWeight: 400 },
   rightWrap: { display: 'flex', alignItems: 'center', gap: 12 },
   iconBtn: {
     border: '1px solid #e5e7eb',
