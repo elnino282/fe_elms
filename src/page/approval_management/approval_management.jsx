@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
 function formatToDDMMYYYY(dateTimeStr) {
@@ -15,44 +15,55 @@ function formatToDDMMYYYY(dateTimeStr) {
 
 export default function ApprovalManagement() {
   const [viewItem, setViewItem] = useState(null);
-  const [pending, setPending] = useState([
-    {
-      id: 1,
-      name: 'Nguyen Van A',
-      position: 'Developer',
-      department: 'Engineer',
-      submittedAt: '11/01/2025 - 09:30',
-      daysTaken: '02/12 days',
-    },
-    {
-      id: 2,
-      name: 'Le Van C',
-      position: 'UI Designer',
-      department: 'Design',
-      submittedAt: '10/25/2025 - 10:15',
-      daysTaken: '09/12 days',
-    },
-  ]);
-
-  const [accepted, setAccepted] = useState([
-    {
-      id: 1,
-      name: 'Tran Thi C',
-      position: 'Product Manager',
-      department: 'Product',
-      submittedAt: '10/28/2025 - 14:00',
-      daysTaken: '06/12 days',
-    },
-  ]);
-
+  const [pending, setPending] = useState([]);
+  const [accepted, setAccepted] = useState([]);
   const [denied, setDenied] = useState([]);
 
+  const PENDING_KEY = 'pending_approvals';
+  const EMP_REQ_KEY = 'employee_requests';
+  const EMP_HIS_KEY = 'employee_history';
+
+  const loadPending = () => {
+    const list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    // transform to table shape while preserving raw
+    const rows = list.map((raw) => ({
+      id: raw.id,
+      name: raw.requester || '-',
+      position: '-',
+      department: '-',
+      submittedAt: formatDateTime(raw.createdAt),
+      daysTaken: `${String(diffDays(new Date(raw.start), new Date(raw.end))).padStart(2,'0')}/12 days`,
+      raw,
+    }));
+    setPending(rows);
+  };
+
+  useEffect(() => {
+    loadPending();
+    const onCustom = (e) => loadPending();
+    const onStorage = (e) => { if (e.key === PENDING_KEY) loadPending(); };
+    window.addEventListener('pending_approvals_updated', onCustom);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('pending_approvals_updated', onCustom);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
   const acceptItem = (item) => {
+    // remove from pending storage
+    const list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    const updatedPending = list.filter((p) => p.id !== item.id);
+    localStorage.setItem(PENDING_KEY, JSON.stringify(updatedPending));
     setPending((prev) => prev.filter((p) => p.id !== item.id));
     setAccepted((prev) => [...prev, { ...item }]);
   };
 
   const denyItem = (item) => {
+    // remove from pending storage
+    const list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    const updatedPending = list.filter((p) => p.id !== item.id);
+    localStorage.setItem(PENDING_KEY, JSON.stringify(updatedPending));
     setPending((prev) => prev.filter((p) => p.id !== item.id));
     setDenied((prev) => [...prev, { ...item }]);
   };
@@ -92,6 +103,23 @@ export default function ApprovalManagement() {
       )}
     </MainLayout>
   );
+}
+
+function diffDays(a, b) {
+  const start = new Date(a); const end = new Date(b);
+  start.setHours(0,0,0,0); end.setHours(0,0,0,0);
+  const ms = end - start; if (ms < 0) return 0;
+  return Math.floor(ms / (1000*60*60*24)) + 1;
+}
+
+function formatDateTime(dt){
+  const d = new Date(dt);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = String(d.getFullYear()).slice(-2);
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yy} - ${hh}:${mi}`;
 }
 
 function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {} }) {

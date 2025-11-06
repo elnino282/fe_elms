@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
+  const demoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1';
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -16,6 +17,11 @@ export default function LoginPage() {
     setError('');
     setFieldErrors({});
     try {
+      if (demoMode) {
+        localStorage.setItem('auth_token', 'demo-token');
+        navigate('/my-page');
+        return;
+      }
       const res = await fetch('http://localhost:8080/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
