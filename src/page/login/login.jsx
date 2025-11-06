@@ -48,6 +48,9 @@ export default function LoginPage() {
       if (role) {
         localStorage.setItem('user_role', role);
       }
+      // Store employeeIdCode with fallback to EMP004
+      const employeeIdCode = (data?.data && data.data.employeeIdCode) ? data.data.employeeIdCode : data?.employeeIdCode || 'EMP004';
+      localStorage.setItem('employee_id_code', employeeIdCode);
       navigate('/my-page');
     } finally {
       setLoading(false);

@@ -6,46 +6,13 @@ export default function RequestLeave() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [leaveRequests, setLeaveRequests] = useState([
-    {
-      id: 1,
-      dateOfRequest: '11/05/2025 - 05:32',
-      startDate: '11/05/2025',
-      endDate: '11/05/2025',
-      reason: 'Personal reasons',
-      status: 'Pending'
-    },
-    {
-      id: 2,
-      dateOfRequest: '11/05/2025 - 05:32',
-      startDate: '11/05/2025',
-      endDate: '11/05/2025',
-      reason: 'Personal reasons',
-      status: 'Pending'
-    }
-  ]);
-  
-  const [leaveHistory, setLeaveHistory] = useState([
-    {
-      id: 1,
-      dateOfRequest: '10/24/2025 - 08:30',
-      startDate: '10/24/2025',
-      endDate: '10/25/2025',
-      reason: 'Personal reasons',
-      approvedBy: 'Van TD'
-    },
-    {
-      id: 2,
-      dateOfRequest: '10/08/2025 - 06:52',
-      startDate: '10/08/2025',
-      endDate: '10/09/2025',
-      reason: 'Health reasons',
-      approvedBy: 'Van TD'
-    }
-  ]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveHistory, setLeaveHistory] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
   useEffect(() => {
     fetchLeaveBalance();
+    fetchLeaveRequests();
   }, []);
 
   const fetchLeaveBalance = async () => {
@@ -77,8 +44,58 @@ export default function RequestLeave() {
     }
   };
 
+  const fetchLeaveRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      const token = localStorage.getItem('auth_token');
+      // Note: This endpoint would need employeeId, keeping empty for now as we only submit
+      // In a real implementation, you'd call the appropriate GET endpoint here
+      setLeaveRequests([]);
+      setLeaveHistory([]);
+    } catch (error) {
+      console.error('Error fetching leave requests:', error);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  const submitLeaveRequest = async (requestData) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const employeeIdCode = localStorage.getItem('employee_id_code') || 'EMP004';
+      
+      const res = await fetch(`http://localhost:8080/api/leave-requests?employeeIdCode=${employeeIdCode}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          startDate: requestData.fromDate,
+          endDate: requestData.toDate,
+          reason: requestData.reason
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to submit leave request');
+      }
+
+      const data = await res.json();
+      
+      // Refresh leave requests after successful submission
+      await fetchLeaveRequests();
+      
+      return data;
+    } catch (error) {
+      console.error('Error submitting leave request:', error);
+      throw error;
+    }
+  };
+
   return (
-    <MainLayout title="Resignation" breadcrumb={[]}>
+    <MainLayout title="Request Leave" breadcrumb={[]}>
       <div style={styles.topBar}>
         <div style={styles.balanceSection}>
           <span style={styles.balanceLabel}>Total day off:</span>
@@ -168,11 +185,14 @@ export default function RequestLeave() {
       {showModal && (
         <RequestLeaveModal 
           onClose={() => setShowModal(false)}
-          onSubmit={(data) => {
-            console.log('Submit leave request:', data);
-            setShowModal(false);
-            setShowSuccessPopup(true);
-            // TODO: API call to submit request
+          onSubmit={async (data) => {
+            try {
+              await submitLeaveRequest(data);
+              setShowModal(false);
+              setShowSuccessPopup(true);
+            } catch (error) {
+              alert('Failed to submit leave request: ' + error.message);
+            }
           }}
         />
       )}
@@ -231,7 +251,7 @@ function RequestLeaveModal({ onClose, onSubmit }) {
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
       <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-        <h2 style={styles.modalTitle}>Resignation Request</h2>
+        <h2 style={styles.modalTitle}>Leave Request</h2>
         
         <form onSubmit={handleSubmit}>
           <div style={styles.modalSection}>
@@ -269,10 +289,10 @@ function RequestLeaveModal({ onClose, onSubmit }) {
           </div>
 
           <div style={styles.modalSection}>
-            <div style={styles.sectionLabel}>Resignation Details</div>
+            <div style={styles.sectionLabel}>Leave Details</div>
             
             <label style={styles.label}>
-              Reason for Resignation <span style={styles.required}>*</span>
+              Reason for Leave <span style={styles.required}>*</span>
             </label>
             <select
               value={reason}
@@ -291,7 +311,7 @@ function RequestLeaveModal({ onClose, onSubmit }) {
             <textarea
               value={additionalDetails}
               onChange={(e) => setAdditionalDetails(e.target.value)}
-              placeholder="Please provide additional details about your resignation..."
+              placeholder="Please provide additional details about your leave request..."
               style={styles.textarea}
               rows={4}
             />
