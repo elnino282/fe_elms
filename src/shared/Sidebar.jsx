@@ -4,10 +4,15 @@ import { PiHouse, PiUserMinus, PiCheckSquare } from 'react-icons/pi';
 
 export default function Sidebar() {
   const { pathname } = useLocation();
+  const role = (typeof window !== 'undefined' && window.localStorage)
+    ? localStorage.getItem('user_role')
+    : null;
   const nav = [
     { label: 'My Page', to: '/my-page', icon: <PiHouse size={20} /> },
     { label: 'Request Leave', to: '/resignation', icon: <PiUserMinus size={20} /> },
-    { label: 'Leave Management', to: '/approval-management', icon: <PiCheckSquare size={20} /> },
+    ...(role === 'ADMIN'
+      ? [{ label: 'Leave Management', to: '/approval-management', icon: <PiCheckSquare size={20} /> }]
+      : []),
   ];
 
   return (

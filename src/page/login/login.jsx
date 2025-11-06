@@ -38,6 +38,10 @@ export default function LoginPage() {
       if (data?.token) {
         localStorage.setItem('auth_token', data.token);
       }
+      const role = (data?.data && data.data.role) ? data.data.role : data?.role;
+      if (role) {
+        localStorage.setItem('user_role', role);
+      }
       navigate('/my-page');
     } finally {
       setLoading(false);
