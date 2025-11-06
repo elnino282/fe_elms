@@ -262,7 +262,7 @@ function formatDateTime(dt){
   return `${dd}/${mm}/${yy} - ${hh}:${mi}`;
 }
 
-function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {} }) {
+function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {}, busyId = null }) {
   const [page, setPage] = useState(1);
   const pageSize = 2;
   const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
