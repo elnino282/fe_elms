@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
 function formatToDDMMYYYY(dateTimeStr) {
@@ -15,46 +15,151 @@ function formatToDDMMYYYY(dateTimeStr) {
 
 export default function ApprovalManagement() {
   const [viewItem, setViewItem] = useState(null);
-  const [pending, setPending] = useState([
-    {
-      id: 1,
-      name: 'Nguyen Van A',
-      position: 'Developer',
-      department: 'Engineer',
-      submittedAt: '11/01/2025 - 09:30',
-      daysTaken: '02/12 days',
-    },
-    {
-      id: 2,
-      name: 'Le Van C',
-      position: 'UI Designer',
-      department: 'Design',
-      submittedAt: '10/25/2025 - 10:15',
-      daysTaken: '09/12 days',
-    },
-  ]);
-
-  const [accepted, setAccepted] = useState([
-    {
-      id: 1,
-      name: 'Tran Thi C',
-      position: 'Product Manager',
-      department: 'Product',
-      submittedAt: '10/28/2025 - 14:00',
-      daysTaken: '06/12 days',
-    },
-  ]);
-
+  const [pending, setPending] = useState([]);
+  const [accepted, setAccepted] = useState([]);
   const [denied, setDenied] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
 
-  const acceptItem = (item) => {
-    setPending((prev) => prev.filter((p) => p.id !== item.id));
-    setAccepted((prev) => [...prev, { ...item }]);
+  useEffect(() => {
+    let alive = true;
+    const normalizeStatus = (s) => {
+      const u = String(s || '').toUpperCase();
+      if (u === 'APPROVED' || u === 'ACCEPTED') return 'APPROVED';
+      if (u === 'REJECTED' || u === 'DENIED') return 'REJECTED';
+      if (u === 'PENDING' || u === 'WAITING' || u === 'REQUESTED') return 'PENDING';
+      return '';
+    };
+
+    const mapItem = (r) => ({
+      id: r?.id ?? r?.requestId ?? r?.leaveId,
+      name: r?.employeeName ?? r?.name ?? r?.fullName ?? '',
+      position: r?.position ?? r?.jobTitle ?? '',
+      department: r?.department ?? r?.departmentName ?? '',
+      submittedAt: r?.dateOfRequest ?? r?.createdAt ?? '',
+      daysTaken: r?.totalDaysTaken ?? (r?.totalDays != null ? `${r.totalDays} days` : ''),
+      status: normalizeStatus(r?.status ?? r?.approvalStatus),
+      reason: r?.reason ?? r?.note ?? '',
+      startDate: r?.startDate ?? '',
+      endDate: r?.endDate ?? '',
+      createdAt: r?.createdAt ?? '',
+      approvedByName: r?.approvedByName ?? r?.approverName ?? '',
+      rejectionReason: r?.rejectionReason ?? r?.rejectReason ?? '',
+    });
+
+    const fetchData = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const token = (typeof window !== 'undefined' && window.localStorage)
+          ? localStorage.getItem('auth_token')
+          : null;
+        const res = await fetch('/api/leave-requests', {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        let list = [];
+        if (Array.isArray(json)) {
+          list = json;
+        } else if (json && Array.isArray(json.data)) {
+          list = json.data;
+        } else if (json && Array.isArray(json.content)) {
+          list = json.content;
+        } else if (json && Array.isArray(json.items)) {
+          list = json.items;
+        } else if (json && json.data && typeof json.data === 'object') {
+          list = [json.data];
+        } else if (json && typeof json === 'object') {
+          // Assume single item object
+          // Try to discover an array within the object first
+          const firstArray = Object.values(json).find((v) => Array.isArray(v));
+          if (firstArray) {
+            list = firstArray;
+          } else {
+            list = [json];
+          }
+        }
+        const mapped = list.map(mapItem);
+        const p = mapped.filter((x) => String(x.status).toUpperCase() === 'PENDING');
+        const a = mapped.filter((x) => String(x.status).toUpperCase() === 'APPROVED');
+        const d = mapped.filter((x) => String(x.status).toUpperCase() === 'REJECTED');
+        if (alive) {
+          if (mapped.length > 0 && p.length + a.length + d.length === 0) {
+            // Unknown statuses -> show in Pending by default
+            setPending(mapped);
+            setAccepted([]);
+            setDenied([]);
+          } else {
+            setPending(p);
+            setAccepted(a);
+            setDenied(d);
+          }
+        }
+      } catch (e) {
+        if (alive) setError(e?.message || 'Failed to load');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => { alive = false; };
+  }, []);
+
+  const approveItem = async (item) => {
+    const token = (typeof window !== 'undefined' && window.localStorage)
+      ? localStorage.getItem('auth_token')
+      : null;
+    const adminId = (typeof window !== 'undefined' && window.localStorage)
+      ? (localStorage.getItem('user_id') || '1')
+      : '1';
+    setError('');
+    setBusyId(item.id);
+    try {
+      const res = await fetch(`/api/leave-requests/${encodeURIComponent(item.id)}/approve?adminId=${encodeURIComponent(adminId)}` , {
+        method: 'PUT',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setPending((prev) => prev.filter((p) => p.id !== item.id));
+      setAccepted((prev) => [...prev, { ...item, status: 'APPROVED' }]);
+    } catch (e) {
+      setError(e?.message || 'Approve failed');
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const denyItem = (item) => {
-    setPending((prev) => prev.filter((p) => p.id !== item.id));
-    setDenied((prev) => [...prev, { ...item }]);
+  const rejectItem = async (item) => {
+    const token = (typeof window !== 'undefined' && window.localStorage)
+      ? localStorage.getItem('auth_token')
+      : null;
+    const adminId = (typeof window !== 'undefined' && window.localStorage)
+      ? (localStorage.getItem('user_id') || '1')
+      : '1';
+    setError('');
+    setBusyId(item.id);
+    try {
+      const res = await fetch(`/api/leave-requests/${encodeURIComponent(item.id)}/reject?adminId=${encodeURIComponent(adminId)}` , {
+        method: 'PUT',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setPending((prev) => prev.filter((p) => p.id !== item.id));
+      setDenied((prev) => [...prev, { ...item, status: 'REJECTED' }]);
+    } catch (e) {
+      setError(e?.message || 'Reject failed');
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -62,12 +167,19 @@ export default function ApprovalManagement() {
       <div style={styles.sectionCard}>
         <div style={styles.sectionHeader}>Pending Approval Requests</div>
         <div style={styles.tableWrap}>
+          {loading && (
+            <div style={styles.emptyCell}>Loading...</div>
+          )}
+          {!!error && !loading && (
+            <div style={{ ...styles.emptyCell, color: '#ef4444' }}>{error}</div>
+          )}
           <Table
             data={pending}
             showActions
             onView={(row) => setViewItem(row)}
-            onAccept={acceptItem}
-            onDeny={denyItem}
+            onAccept={approveItem}
+            onDeny={rejectItem}
+            busyId={busyId}
             emptyText="No pending requests found"
           />
         </div>
@@ -94,10 +206,10 @@ export default function ApprovalManagement() {
   );
 }
 
-function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {} }) {
+function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {}, busyId = null }) {
   const [page, setPage] = useState(1);
-  const pageSize = 5;
-  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+  const pageSize = 2;
+  const totalPages = Math.min(2, Math.max(1, Math.ceil(data.length / pageSize)));
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;
   const pageData = data.slice(start, start + pageSize);
@@ -142,13 +254,13 @@ function Table({ data, showActions = false, emptyText, onView = () => {}, onAcce
                 {showActions && (
                   <td style={{ ...styles.td, ...styles.nowrap, ...styles.tdActions }}>
                     <div style={styles.actionRow}>
-                      <button style={{ ...styles.btn, ...styles.btnSuccess }} onClick={() => onAccept(row)}>
+                      <button style={{ ...styles.btn, ...styles.btnSuccess, ...(busyId === row.id ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }} onClick={() => onAccept(row)} disabled={busyId === row.id}>
                         <span style={styles.btnIcon}>{checkIcon}</span>
-                        Accept
+                        {busyId === row.id ? 'Processing...' : 'Accept'}
                       </button>
-                      <button style={{ ...styles.btn, ...styles.btnDanger }} onClick={() => onDeny(row)}>
+                      <button style={{ ...styles.btn, ...styles.btnDanger, ...(busyId === row.id ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }} onClick={() => onDeny(row)} disabled={busyId === row.id}>
                         <span style={styles.btnIcon}>{xIcon}</span>
-                        Deny
+                        {busyId === row.id ? 'Processing...' : 'Deny'}
                       </button>
                     </div>
                   </td>
@@ -169,18 +281,27 @@ function Table({ data, showActions = false, emptyText, onView = () => {}, onAcce
             Previous
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              style={{
-                ...styles.pageNum,
-                ...(p === safePage ? styles.pageNumActive : {}),
-              }}
-              onClick={() => goto(p)}
-            >
-              {p}
-            </button>
-          ))}
+          <button
+            style={{
+              ...styles.pageNum,
+              ...(safePage === 1 ? styles.pageNumActive : {}),
+            }}
+            onClick={() => goto(1)}
+          >
+            1
+          </button>
+
+          <button
+            style={{
+              ...styles.pageNum,
+              ...(totalPages === 1 ? styles.pageNumDisabled : {}),
+              ...(safePage === 2 && totalPages >= 2 ? styles.pageNumActive : {}),
+            }}
+            onClick={() => (totalPages >= 2 ? goto(2) : null)}
+            disabled={totalPages === 1}
+          >
+            2
+          </button>
 
           <button
             style={{ ...styles.pageBtn, ...(safePage === totalPages ? styles.pageBtnDisabled : {}) }}
@@ -222,11 +343,11 @@ function DetailsModal({ item, onClose }) {
         <div style={styles.inputRow}>
           <div style={styles.inputCol}>
             <div style={styles.label}>From Date</div>
-            <input style={styles.inputDisabled} disabled value={formatToDDMMYYYY(item?.submittedAt || '')} />
+            <input style={styles.inputDisabled} disabled value={formatToDDMMYYYY(item?.startDate || '')} />
           </div>
           <div style={styles.inputCol}>
             <div style={styles.label}>To Date</div>
-            <input style={styles.inputDisabled} disabled value={item?.daysTaken || ''} />
+            <input style={styles.inputDisabled} disabled value={formatToDDMMYYYY(item?.endDate || '')} />
           </div>
         </div>
 
@@ -234,7 +355,7 @@ function DetailsModal({ item, onClose }) {
         <hr style={styles.hr} />
         <div style={styles.inputCol}>
           <div style={styles.label}>Reason for Resignation</div>
-          <textarea style={{ ...styles.inputDisabled, ...styles.textarea }} disabled placeholder="" value={''} />
+          <textarea style={{ ...styles.inputDisabled, ...styles.textarea }} disabled placeholder="" value={item?.reason || ''} />
         </div>
 
         <div style={styles.modalFooter}>
@@ -387,6 +508,12 @@ const styles = {
     background: '#ff7a18',
     borderColor: '#ff7a18',
     color: '#fff',
+  },
+  pageNumDisabled: {
+    background: '#e5e7eb',
+    borderColor: '#e5e7eb',
+    color: '#9ca3af',
+    cursor: 'not-allowed',
   },
   modalOverlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
