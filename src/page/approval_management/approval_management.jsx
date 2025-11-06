@@ -1,6 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
+function formatToDDMMYYYY(dateTimeStr) {
+  if (!dateTimeStr) return '';
+  const [datePart, timePart] = String(dateTimeStr).split(' - ');
+  if (!datePart) return dateTimeStr;
+  const parts = datePart.split('/');
+  if (parts.length !== 3) return dateTimeStr;
+  const [mm, dd, yyyy] = parts;
+  const dd2 = String(dd).padStart(2, '0');
+  const mm2 = String(mm).padStart(2, '0');
+  return `${dd2}/${mm2}/${yyyy}${timePart ? ` - ${timePart}` : ''}`;
+}
+
 export default function ApprovalManagement() {
   const [viewItem, setViewItem] = useState(null);
   const [pending, setPending] = useState([]);
@@ -44,21 +56,7 @@ export default function ApprovalManagement() {
     const updatedPending = list.filter((p) => p.id !== item.id);
     localStorage.setItem(PENDING_KEY, JSON.stringify(updatedPending));
     setPending((prev) => prev.filter((p) => p.id !== item.id));
-    setAccepted((prev) => [{ ...item }, ...prev]);
-
-    // update employee requests -> status approved
-    const req = JSON.parse(localStorage.getItem(EMP_REQ_KEY) || '[]');
-    const reqUpdated = req.map((r) => (r.id === item.id ? { ...r, status: 'approved' } : r));
-    localStorage.setItem(EMP_REQ_KEY, JSON.stringify(reqUpdated));
-    window.dispatchEvent(new Event('employee_requests_updated'));
-
-    // append to employee history
-    const raw = item.raw || {};
-    const history = JSON.parse(localStorage.getItem(EMP_HIS_KEY) || '[]');
-    const hisEntry = { id: Date.now(), createdAt: new Date().toISOString(), start: raw.start, end: raw.end, reason: raw.reason, approvedBy: 'Manager' };
-    const hisUpdated = [hisEntry, ...history];
-    localStorage.setItem(EMP_HIS_KEY, JSON.stringify(hisUpdated));
-    window.dispatchEvent(new Event('employee_history_updated'));
+    setAccepted((prev) => [...prev, { ...item }]);
   };
 
   const denyItem = (item) => {
@@ -67,13 +65,7 @@ export default function ApprovalManagement() {
     const updatedPending = list.filter((p) => p.id !== item.id);
     localStorage.setItem(PENDING_KEY, JSON.stringify(updatedPending));
     setPending((prev) => prev.filter((p) => p.id !== item.id));
-    setDenied((prev) => [{ ...item }, ...prev]);
-
-    // update employee requests -> status denied (not added to history)
-    const req = JSON.parse(localStorage.getItem(EMP_REQ_KEY) || '[]');
-    const reqUpdated = req.map((r) => (r.id === item.id ? { ...r, status: 'denied' } : r));
-    localStorage.setItem(EMP_REQ_KEY, JSON.stringify(reqUpdated));
-    window.dispatchEvent(new Event('employee_requests_updated'));
+    setDenied((prev) => [...prev, { ...item }]);
   };
 
   return (
@@ -162,12 +154,12 @@ function Table({ data, showActions = false, emptyText, onView = () => {}, onAcce
             </tr>
           ) : (
             pageData.map((row, idx) => (
-              <tr key={row.id}>
+              <tr key={`${row.id}-${start + idx}`}>
                 <td style={{ ...styles.tdMuted, ...styles.tdIndex }}>{start + idx + 1}</td>
                 <td style={{ ...styles.td, ...styles.tdName }}><span style={styles.nowrap}>{row.name}</span></td>
                 <td style={{ ...styles.td, ...styles.tdPosition }}><span style={styles.nowrap}>{row.position}</span></td>
                 <td style={{ ...styles.td, ...styles.tdDept }}><span style={styles.nowrap}>{row.department}</span></td>
-                <td style={{ ...styles.td, ...styles.tdDate }}><span style={styles.nowrap}>{row.submittedAt}</span></td>
+                <td style={{ ...styles.td, ...styles.tdDate }}><span style={styles.nowrap}>{formatToDDMMYYYY(row.submittedAt)}</span></td>
                 <td style={{ ...styles.td, ...styles.tdDays }}><span style={styles.nowrap}>{row.daysTaken}</span></td>
                 <td style={{ ...styles.td, ...styles.tdDetail }}>
                   <button style={{ ...styles.btn, ...styles.btnGhost }} onClick={() => onView(row)}>
@@ -258,7 +250,7 @@ function DetailsModal({ item, onClose }) {
         <div style={styles.inputRow}>
           <div style={styles.inputCol}>
             <div style={styles.label}>From Date</div>
-            <input style={styles.inputDisabled} disabled value={item?.submittedAt || ''} />
+            <input style={styles.inputDisabled} disabled value={formatToDDMMYYYY(item?.submittedAt || '')} />
           </div>
           <div style={styles.inputCol}>
             <div style={styles.label}>To Date</div>
