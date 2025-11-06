@@ -29,8 +29,9 @@ export default function MainLayout({ title, children, breadcrumb = [] }) {
 const styles = {
   appWrap: {
     display: 'flex',
-    minHeight: '100vh',
+    height: '100vh',
     background: '#f5f7fb',
+    overflow: 'hidden',
   },
   mainCol: {
     flex: 1,
@@ -39,6 +40,10 @@ const styles = {
   },
   contentWrap: {
     padding: '16px 24px',
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
   },
   breadcrumb: {
     display: 'flex',

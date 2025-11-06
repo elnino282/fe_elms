@@ -6,8 +6,8 @@ export default function Sidebar() {
   const { pathname } = useLocation();
   const nav = [
     { label: 'My Page', to: '/my-page', icon: <PiHouse size={20} /> },
-    { label: 'Resignation', to: '/resignation', icon: <PiUserMinus size={20} /> },
-    { label: 'Approval Management', to: '/approval-management', icon: <PiCheckSquare size={20} /> },
+    { label: 'Request Leave', to: '/resignation', icon: <PiUserMinus size={20} /> },
+    { label: 'Leave Management', to: '/approval-management', icon: <PiCheckSquare size={20} /> },
   ];
 
   return (
@@ -40,7 +40,7 @@ const styles = {
     flexDirection: 'column',
     gap: 16,
   },
-  brand: { color: '#ff6a00', fontWeight: 800, fontSize: 22, letterSpacing: 2, padding: '8px 12px', marginBottom: 16 },
+  brand: { color: '#ff6a00', fontWeight: 800, fontSize: 30, letterSpacing: 2, padding: '8px 12px', marginBottom: 16 },
   item: {
     display: 'flex',
     alignItems: 'center',

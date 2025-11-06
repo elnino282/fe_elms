@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
+function formatToDDMMYYYY(dateTimeStr) {
+  if (!dateTimeStr) return '';
+  const [datePart, timePart] = String(dateTimeStr).split(' - ');
+  if (!datePart) return dateTimeStr;
+  const parts = datePart.split('/');
+  if (parts.length !== 3) return dateTimeStr;
+  const [mm, dd, yyyy] = parts;
+  const dd2 = String(dd).padStart(2, '0');
+  const mm2 = String(mm).padStart(2, '0');
+  return `${dd2}/${mm2}/${yyyy}${timePart ? ` - ${timePart}` : ''}`;
+}
+
 export default function ApprovalManagement() {
   const [viewItem, setViewItem] = useState(null);
   const [pending, setPending] = useState([
@@ -37,12 +49,12 @@ export default function ApprovalManagement() {
 
   const acceptItem = (item) => {
     setPending((prev) => prev.filter((p) => p.id !== item.id));
-    setAccepted((prev) => [{ ...item }, ...prev]);
+    setAccepted((prev) => [...prev, { ...item }]);
   };
 
   const denyItem = (item) => {
     setPending((prev) => prev.filter((p) => p.id !== item.id));
-    setDenied((prev) => [{ ...item }, ...prev]);
+    setDenied((prev) => [...prev, { ...item }]);
   };
 
   return (
@@ -114,12 +126,12 @@ function Table({ data, showActions = false, emptyText, onView = () => {}, onAcce
             </tr>
           ) : (
             pageData.map((row, idx) => (
-              <tr key={row.id}>
+              <tr key={`${row.id}-${start + idx}`}>
                 <td style={{ ...styles.tdMuted, ...styles.tdIndex }}>{start + idx + 1}</td>
                 <td style={{ ...styles.td, ...styles.tdName }}><span style={styles.nowrap}>{row.name}</span></td>
                 <td style={{ ...styles.td, ...styles.tdPosition }}><span style={styles.nowrap}>{row.position}</span></td>
                 <td style={{ ...styles.td, ...styles.tdDept }}><span style={styles.nowrap}>{row.department}</span></td>
-                <td style={{ ...styles.td, ...styles.tdDate }}><span style={styles.nowrap}>{row.submittedAt}</span></td>
+                <td style={{ ...styles.td, ...styles.tdDate }}><span style={styles.nowrap}>{formatToDDMMYYYY(row.submittedAt)}</span></td>
                 <td style={{ ...styles.td, ...styles.tdDays }}><span style={styles.nowrap}>{row.daysTaken}</span></td>
                 <td style={{ ...styles.td, ...styles.tdDetail }}>
                   <button style={{ ...styles.btn, ...styles.btnGhost }} onClick={() => onView(row)}>
@@ -210,7 +222,7 @@ function DetailsModal({ item, onClose }) {
         <div style={styles.inputRow}>
           <div style={styles.inputCol}>
             <div style={styles.label}>From Date</div>
-            <input style={styles.inputDisabled} disabled value={item?.submittedAt || ''} />
+            <input style={styles.inputDisabled} disabled value={formatToDDMMYYYY(item?.submittedAt || '')} />
           </div>
           <div style={styles.inputCol}>
             <div style={styles.label}>To Date</div>
