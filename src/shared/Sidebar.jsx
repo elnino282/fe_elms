@@ -11,7 +11,7 @@ export default function Sidebar() {
     { label: 'My Page', to: '/my-page', icon: <PiHouse size={20} /> },
     { label: 'Request Leave', to: '/resignation', icon: <PiUserMinus size={20} /> },
     ...(role === 'ADMIN'
-      ? [{ label: 'Leave Management', to: '/approval-management', icon: <PiCheckSquare size={20} /> }]
+      ? [{ label: 'Leave Management', to: '/leave-management', icon: <PiCheckSquare size={20} /> }]
       : []),
   ];
 
@@ -24,7 +24,7 @@ export default function Sidebar() {
           return (
             <Link key={n.label} to={n.to} style={{ ...styles.item, ...(active ? styles.itemActive : {}) }}>
               <span style={{ ...styles.itemIcon, color: active ? '#fff' : '#c9d2dc' }}>{n.icon}</span>
-              <span style={{ ...styles.itemLabel, color: active ? '#fff' : '#e5e7eb' }}>{n.label}</span>
+              <span style={{ ...styles.itemLabel, color: active ? '#fff' : '#d1d5dc' }}>{n.label}</span>
             </Link>
           );
         })}
@@ -37,8 +37,8 @@ export default function Sidebar() {
 const styles = {
   aside: {
     minHeight: '100vh',
-    width: 240,
-    background: '#0f2239',
+    width: 256,
+    background: '#1a2332',
     color: '#e5e7eb',
     padding: '16px',
     display: 'flex',
@@ -49,16 +49,16 @@ const styles = {
   item: {
     display: 'flex',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
     padding: '0 16px',
     height: 48,
-    borderRadius: 8,
+    borderRadius: 0,
     color: '#e5e7eb',
     textDecoration: 'none',
   },
-  itemActive: { background: '#ff6a00' },
-  itemIcon: { display: 'inline-flex', width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  itemLabel: { fontSize: 15, lineHeight: '22px', flex: 1 },
+  itemActive: { background: '#ff6900' },
+  itemIcon: { display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  itemLabel: { fontSize: 16, lineHeight: '24px', flex: 1, color: '#d1d5dc' },
   bottomStub: { marginTop: 'auto' },
 };
 

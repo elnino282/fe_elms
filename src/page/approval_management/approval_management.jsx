@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
 function formatToDDMMYYYY(dateTimeStr) {
@@ -18,6 +18,37 @@ export default function ApprovalManagement() {
   const [pending, setPending] = useState([]);
   const [accepted, setAccepted] = useState([]);
   const [denied, setDenied] = useState([]);
+
+  const PENDING_KEY = 'pending_approvals';
+  const EMP_REQ_KEY = 'employee_requests';
+  const EMP_HIS_KEY = 'employee_history';
+
+  const loadPending = () => {
+    const list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    // transform to table shape while preserving raw
+    const rows = list.map((raw) => ({
+      id: raw.id,
+      name: raw.requester || '-',
+      position: '-',
+      department: '-',
+      submittedAt: formatDateTime(raw.createdAt),
+      daysTaken: `${String(diffDays(new Date(raw.start), new Date(raw.end))).padStart(2,'0')}/12 days`,
+      raw,
+    }));
+    setPending(rows);
+  };
+
+  useEffect(() => {
+    loadPending();
+    const onCustom = (e) => loadPending();
+    const onStorage = (e) => { if (e.key === PENDING_KEY) loadPending(); };
+    window.addEventListener('pending_approvals_updated', onCustom);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('pending_approvals_updated', onCustom);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
@@ -127,7 +158,11 @@ export default function ApprovalManagement() {
         },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setPending((prev) => prev.filter((p) => p.id !== item.id));
+      // remove from pending storage
+    const list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    const updatedPending = list.filter((p) => p.id !== item.id);
+    localStorage.setItem(PENDING_KEY, JSON.stringify(updatedPending));
+    setPending((prev) => prev.filter((p) => p.id !== item.id));
       setAccepted((prev) => [...prev, { ...item, status: 'APPROVED' }]);
     } catch (e) {
       setError(e?.message || 'Approve failed');
@@ -153,7 +188,11 @@ export default function ApprovalManagement() {
         },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setPending((prev) => prev.filter((p) => p.id !== item.id));
+      // remove from pending storage
+    const list = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    const updatedPending = list.filter((p) => p.id !== item.id);
+    localStorage.setItem(PENDING_KEY, JSON.stringify(updatedPending));
+    setPending((prev) => prev.filter((p) => p.id !== item.id));
       setDenied((prev) => [...prev, { ...item, status: 'REJECTED' }]);
     } catch (e) {
       setError(e?.message || 'Reject failed');
@@ -206,7 +245,24 @@ export default function ApprovalManagement() {
   );
 }
 
-function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {}, busyId = null }) {
+function diffDays(a, b) {
+  const start = new Date(a); const end = new Date(b);
+  start.setHours(0,0,0,0); end.setHours(0,0,0,0);
+  const ms = end - start; if (ms < 0) return 0;
+  return Math.floor(ms / (1000*60*60*24)) + 1;
+}
+
+function formatDateTime(dt){
+  const d = new Date(dt);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = String(d.getFullYear()).slice(-2);
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yy} - ${hh}:${mi}`;
+}
+
+function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {} }) {
   const [page, setPage] = useState(1);
   const pageSize = 2;
   const totalPages = Math.min(2, Math.max(1, Math.ceil(data.length / pageSize)));
