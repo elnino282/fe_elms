@@ -3,7 +3,7 @@ import './App.css';
 import LoginPage from './page/login/login.jsx';
 import MyPage from './page/mypage/MyPage.jsx';
 import RequestLeave from './page/requestleave/RequestLeave.jsx';
-import ApprovalManagement from './page/approvalmanagement/ApprovalManagement.jsx';
+import ApprovalManagement from './page/approval_management/approval_management.jsx';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 function App() {
