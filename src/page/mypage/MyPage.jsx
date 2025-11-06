@@ -1,45 +1,113 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
 export default function MyPage() {
-  const user = {
-    fullName: 'Nguyen Van A',
-    title: 'Developer',
-    employeeId: 'EMP-2024-001',
-    email: 'nguyen.vana@company.com',
-    department: 'Engineer',
-    position: 'Developer',
+  const [userInfo, setUserInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchUserInfo = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const token = localStorage.getItem('auth_token');
+      const employeeId = localStorage.getItem('employee_id');
+      const userRole = localStorage.getItem('user_role');
+      
+      if (!employeeId) {
+        console.error('No employee ID found in localStorage');
+        setError('Employee ID not found. Please login again.');
+        setLoading(false);
+        return;
+      }
+      
+      const res = await fetch(`http://localhost:8080/api/auth/userinfo?employeeId=${employeeId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (res.ok) {
+        const response = await res.json();
+        const data = response.data;
+        
+        // Handle admin vs employee display
+        const isAdmin = userRole === 'ADMIN';
+        const position = data.position || (isAdmin ? 'Admin' : 'N/A');
+        const department = data.department || (isAdmin ? 'Administration' : 'N/A');
+        
+        setUserInfo({
+          fullName: data.fullName || 'N/A',
+          title: position,
+          employeeId: data.employeeIdCode || 'N/A',
+          email: data.username || 'N/A',
+          department: department,
+          position: position,
+        });
+      } else {
+        console.error('Failed to fetch user info:', res.status);
+        setError('Failed to load user information. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      setError('An error occurred while loading user information.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchUserInfo();
+  }, []);
 
   return (
     <MainLayout title="Welcome!" breadcrumb={[]}> 
-      <div style={styles.card}>
-        <div style={styles.headerRow}>
-          <div style={styles.avatarWrap}>
-            <div style={styles.avatarIcon}>{userIcon}</div>
-          </div>
-          <div>
-            <div style={styles.name}>{user.fullName}</div>
-            <div style={styles.subtitle}>{user.title}</div>
+      {loading ? (
+        <div style={styles.card}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+            Loading user information...
           </div>
         </div>
-
-        <hr style={styles.hr} />
-
-        <div style={styles.sectionTitle}>Basic Information</div>
-
-        <div style={styles.infoGrid}>
-          <div style={styles.infoCol}>
-            <InfoItem icon={personIcon} label="Full Name" value={user.fullName} />
-            <InfoItem icon={idIcon} label="User ID" value={user.employeeId} />
-            <InfoItem icon={mailIcon} label="Email" value={user.email} />
+      ) : error ? (
+        <div style={styles.card}>
+          <div style={styles.errorBox}>
+            {error}
           </div>
-          <div style={{ ...styles.infoCol, ...styles.infoColRight }}>
-            <InfoItem icon={deptIcon} label="Department" value={user.department} />
-            <InfoItem icon={wrenchIcon} label="Position" value={user.position} />
+          <button onClick={fetchUserInfo} style={styles.retryBtn}>
+            Retry
+          </button>
+        </div>
+      ) : userInfo ? (
+        <div style={styles.card}>
+          <div style={styles.headerRow}>
+            <div style={styles.avatarWrap}>
+              <div style={styles.avatarIcon}>{userIcon}</div>
+            </div>
+            <div>
+              <div style={styles.name}>{userInfo.fullName}</div>
+              <div style={styles.subtitle}>{userInfo.title}</div>
+            </div>
+          </div>
+
+          <hr style={styles.hr} />
+
+          <div style={styles.sectionTitle}>Basic Information</div>
+
+          <div style={styles.infoGrid}>
+            <div style={styles.infoCol}>
+              <InfoItem icon={personIcon} label="Full Name" value={userInfo.fullName} />
+              <InfoItem icon={idIcon} label="User ID" value={userInfo.employeeId} />
+              <InfoItem icon={mailIcon} label="Email" value={userInfo.email} />
+            </div>
+            <div style={{ ...styles.infoCol, ...styles.infoColRight }}>
+              <InfoItem icon={deptIcon} label="Department" value={userInfo.department} />
+              <InfoItem icon={wrenchIcon} label="Position" value={userInfo.position} />
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </MainLayout>
   );
 }
@@ -89,6 +157,27 @@ const styles = {
   iconBadgeInner: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 },
   itemLabel: { color: '#6b7280', fontSize: 12 },
   itemValue: { color: '#111827', fontWeight: 'normal' },
+  errorBox: {
+    marginTop: 16,
+    color: '#b91c1c',
+    background: '#fee2e2',
+    border: '1px solid #fecaca',
+    padding: '10px 12px',
+    borderRadius: 8,
+    fontSize: 14,
+  },
+  retryBtn: {
+    marginTop: 16,
+    background: '#ff6a00',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    boxShadow: '0 2px 4px rgba(255, 106, 0, 0.2)',
+  },
 };
 
 const userIcon = (

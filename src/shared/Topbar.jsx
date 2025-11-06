@@ -1,21 +1,69 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Topbar({ title }) {
   const navigate = useNavigate();
+  const [userName, setUserName] = useState('User');
+  const [userInitial, setUserInitial] = useState('U');
+
+  useEffect(() => {
+    // Try to get user name from localStorage first
+    const storedName = localStorage.getItem('user_full_name');
+    if (storedName) {
+      setUserName(storedName);
+      setUserInitial(storedName.charAt(0).toUpperCase());
+    } else {
+      // Fallback: fetch from API
+      fetchUserName();
+    }
+  }, []);
+
+  const fetchUserName = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const employeeId = localStorage.getItem('employee_id');
+      
+      if (!employeeId || !token) return;
+
+      const res = await fetch(`http://localhost:8080/api/auth/userinfo?employeeId=${employeeId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (res.ok) {
+        const response = await res.json();
+        const fullName = response.data?.fullName;
+        if (fullName) {
+          setUserName(fullName);
+          setUserInitial(fullName.charAt(0).toUpperCase());
+          localStorage.setItem('user_full_name', fullName);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user name:', error);
+    }
+  };
+
   const handleLogout = () => {
     try {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('employee_id');
+      localStorage.removeItem('employee_id_code');
+      localStorage.removeItem('user_full_name');
     } catch {}
     navigate('/login', { replace: true });
   };
+
   return (
     <header style={styles.header}>
       <div style={styles.title}>{title}</div>
       <div style={styles.rightWrap}>
         <div style={styles.userPill}>
-          <div style={styles.avatar}>A</div>
-          <div style={styles.userName}>A Nguyen Van</div>
+          <div style={styles.avatar}>{userInitial}</div>
+          <div style={styles.userName}>{userName}</div>
         </div>
         <button style={styles.logoutBtn} onClick={handleLogout}>
           <span style={styles.iconInner}>{logoutIcon}</span>

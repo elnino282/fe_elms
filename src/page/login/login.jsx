@@ -41,13 +41,48 @@ export default function LoginPage() {
         return;
       }
       const data = await res.json();
+      console.log('Login response:', data);
+      
+      // Clear old localStorage data to prevent conflicts
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('employee_id');
+      localStorage.removeItem('employee_id_code');
+      localStorage.removeItem('user_full_name');
+      
+      // Store auth token
       if (data?.token) {
         localStorage.setItem('auth_token', data.token);
       }
+      
+      // Store user role
       const role = (data?.data && data.data.role) ? data.data.role : data?.role;
       if (role) {
         localStorage.setItem('user_role', role);
+        console.log('Stored user_role:', role);
       }
+      
+      // Store employeeIdCode with fallback to EMP004
+      const employeeIdCode = (data?.data && data.data.employeeIdCode) ? data.data.employeeIdCode : data?.employeeIdCode || 'EMP004';
+      localStorage.setItem('employee_id_code', employeeIdCode);
+      console.log('Stored employee_id_code:', employeeIdCode);
+      
+      // Store numeric employeeId (backend returns "id" not "employeeId")
+      const employeeId = (data?.data && data.data.id) ? data.data.id : data?.id;
+      if (employeeId) {
+        localStorage.setItem('employee_id', employeeId);
+        console.log('Stored employee_id:', employeeId);
+      } else {
+        console.error('No employee ID found in response:', data);
+      }
+      
+      // Store user full name if available
+      const fullName = (data?.data && data.data.fullName) ? data.data.fullName : data?.fullName;
+      if (fullName) {
+        localStorage.setItem('user_full_name', fullName);
+        console.log('Stored user_full_name:', fullName);
+      }
+      
       navigate('/my-page');
     } finally {
       setLoading(false);

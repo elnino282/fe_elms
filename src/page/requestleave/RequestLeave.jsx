@@ -1,57 +1,118 @@
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../../layout/MainLayout.jsx';
 
+// Helper function to format dates to Vietnamese format (DD/MM/YYYY)
+const formatDate = (isoDate) => {
+  if (!isoDate) return 'N/A';
+  const date = new Date(isoDate);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// Helper function to get status badge styling based on status
+const getStatusBadgeStyle = (status) => {
+  const baseStyle = {
+    padding: '4px 12px',
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: 500,
+    display: 'inline-block',
+  };
+
+  switch (status) {
+    case 'PENDING':
+      return {
+        ...baseStyle,
+        background: '#fef3c7',
+        color: '#92400e',
+      };
+    case 'APPROVED':
+      return {
+        ...baseStyle,
+        background: '#d1fae5',
+        color: '#065f46',
+      };
+    case 'REJECTED':
+      return {
+        ...baseStyle,
+        background: '#fee2e2',
+        color: '#991b1b',
+      };
+    default:
+      return {
+        ...baseStyle,
+        background: '#f3f4f6',
+        color: '#374151',
+      };
+  }
+};
+
+// Helper function to calculate weekdays (Monday-Friday) between two dates
+const calculateWeekdays = (fromDate, toDate) => {
+  if (!fromDate || !toDate) return 0;
+  
+  const start = new Date(fromDate);
+  const end = new Date(toDate);
+  
+  // Reset time to midnight for accurate calculation
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  
+  // If end date is before start date, return 0
+  if (end < start) return 0;
+  
+  let weekdayCount = 0;
+  const currentDate = new Date(start);
+  
+  // Loop through each day from start to end (inclusive)
+  while (currentDate <= end) {
+    const dayOfWeek = currentDate.getDay();
+    // Count only Monday (1) to Friday (5)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      weekdayCount++;
+    }
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return weekdayCount;
+};
+
 export default function RequestLeave() {
   const [leaveBalance, setLeaveBalance] = useState({ usedDays: 0, totalDays: 0 });
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [leaveRequests, setLeaveRequests] = useState([
-    {
-      id: 1,
-      dateOfRequest: '11/05/2025 - 05:32',
-      startDate: '11/05/2025',
-      endDate: '11/05/2025',
-      reason: 'Personal reasons',
-      status: 'Pending'
-    },
-    {
-      id: 2,
-      dateOfRequest: '11/05/2025 - 05:32',
-      startDate: '11/05/2025',
-      endDate: '11/05/2025',
-      reason: 'Personal reasons',
-      status: 'Pending'
-    }
-  ]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveHistory, setLeaveHistory] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   
-  const [leaveHistory, setLeaveHistory] = useState([
-    {
-      id: 1,
-      dateOfRequest: '10/24/2025 - 08:30',
-      startDate: '10/24/2025',
-      endDate: '10/25/2025',
-      reason: 'Personal reasons',
-      approvedBy: 'Van TD'
-    },
-    {
-      id: 2,
-      dateOfRequest: '10/08/2025 - 06:52',
-      startDate: '10/08/2025',
-      endDate: '10/09/2025',
-      reason: 'Health reasons',
-      approvedBy: 'Van TD'
-    }
-  ]);
+  // Pagination state
+  const [requestsPage, setRequestsPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const pageSize = 2; // Match Resignation page size
 
   useEffect(() => {
     fetchLeaveBalance();
+    fetchLeaveRequests();
   }, []);
 
   const fetchLeaveBalance = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch('http://localhost:8080/api/leave-balances/my-balance', {
+      const employeeId = localStorage.getItem('employee_id');
+      
+      if (!employeeId) {
+        console.error('No employee ID found in localStorage');
+        setLeaveBalance({ usedDays: 0, totalDays: 12 });
+        setLoading(false);
+        return;
+      }
+      
+      const currentYear = new Date().getFullYear();
+      const res = await fetch(`http://localhost:8080/api/leave-balances/my-balance?employeeId=${employeeId}&year=${currentYear}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -59,26 +120,113 @@ export default function RequestLeave() {
       });
       
       if (res.ok) {
-        const data = await res.json();
+        const response = await res.json();
+        // Parse the nested response structure
+        const balanceData = response.data;
         setLeaveBalance({
-          usedDays: data.usedDays || 3,
-          totalDays: data.totalDays || 12
+          usedDays: balanceData.used || 0,
+          totalDays: balanceData.entitlement || 12
         });
       } else {
         // Fallback to demo data
-        setLeaveBalance({ usedDays: 3, totalDays: 12 });
+        console.error('Failed to fetch leave balance:', res.status);
+        setLeaveBalance({ usedDays: 0, totalDays: 12 });
       }
     } catch (error) {
       console.error('Error fetching leave balance:', error);
       // Fallback to demo data
-      setLeaveBalance({ usedDays: 3, totalDays: 12 });
+      setLeaveBalance({ usedDays: 0, totalDays: 12 });
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchLeaveRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      const token = localStorage.getItem('auth_token');
+      const employeeIdCode = localStorage.getItem('employee_id_code') || 'EMP004';
+      
+      const res = await fetch(`http://localhost:8080/api/leave-requests/my-requests?employeeIdCode=${employeeIdCode}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (res.ok) {
+        const response = await res.json();
+        const data = response.data || [];
+        
+        // Separate PENDING from APPROVED/REJECTED
+        const pending = data.filter(item => item.status === 'PENDING');
+        const history = data.filter(item => item.status === 'APPROVED' || item.status === 'REJECTED');
+        
+        setLeaveRequests(pending);
+        setLeaveHistory(history);
+      } else {
+        setLeaveRequests([]);
+        setLeaveHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching leave requests:', error);
+      setLeaveRequests([]);
+      setLeaveHistory([]);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  const submitLeaveRequest = async (requestData) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const employeeIdCode = localStorage.getItem('employee_id_code') || 'EMP004';
+      
+      const res = await fetch(`http://localhost:8080/api/leave-requests?employeeIdCode=${employeeIdCode}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          startDate: requestData.fromDate,
+          endDate: requestData.toDate,
+          reason: requestData.reason
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to submit leave request');
+      }
+
+      const data = await res.json();
+      
+      // Refresh leave requests and balance after successful submission
+      await fetchLeaveRequests();
+      await fetchLeaveBalance();
+      
+      return data;
+    } catch (error) {
+      console.error('Error submitting leave request:', error);
+      throw error;
+    }
+  };
+
+  // Calculate pagination for Leave Request table
+  const requestsTotalPages = Math.max(1, Math.ceil(leaveRequests.length / pageSize));
+  const requestsSafePage = Math.min(requestsPage, requestsTotalPages);
+  const requestsStart = (requestsSafePage - 1) * pageSize;
+  const requestsPageData = leaveRequests.slice(requestsStart, requestsStart + pageSize);
+
+  // Calculate pagination for Leave History table
+  const historyTotalPages = Math.max(1, Math.ceil(leaveHistory.length / pageSize));
+  const historySafePage = Math.min(historyPage, historyTotalPages);
+  const historyStart = (historySafePage - 1) * pageSize;
+  const historyPageData = leaveHistory.slice(historyStart, historyStart + pageSize);
+
   return (
-    <MainLayout title="Resignation" breadcrumb={[]}>
+    <MainLayout title="Request Leave" breadcrumb={[]}>
       <div style={styles.topBar}>
         <div style={styles.balanceSection}>
           <span style={styles.balanceLabel}>Total day off:</span>
@@ -107,26 +255,70 @@ export default function RequestLeave() {
             </tr>
           </thead>
           <tbody>
-            {leaveRequests.map((request, index) => (
-              <tr key={request.id} style={styles.bodyRow}>
-                <td style={styles.td}>{index + 1}</td>
-                <td style={styles.td}>{request.dateOfRequest}</td>
-                <td style={styles.td}>{request.startDate}</td>
-                <td style={styles.td}>{request.endDate}</td>
-                <td style={styles.td}>{request.reason}</td>
-                <td style={styles.td}>
-                  <span style={styles.statusBadge}>{request.status}</span>
+            {requestsLoading ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px'}}>
+                  Loading...
                 </td>
               </tr>
-            ))}
+            ) : leaveRequests.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px', color: '#6b7280'}}>
+                  No pending leave requests
+                </td>
+              </tr>
+            ) : (
+              requestsPageData.map((request, index) => (
+                <tr key={request.id} style={styles.bodyRow}>
+                  <td style={styles.td}>{requestsStart + index + 1}</td>
+                  <td style={styles.td}>{formatDate(request.createdAt)}</td>
+                  <td style={styles.td}>{formatDate(request.startDate)}</td>
+                  <td style={styles.td}>{formatDate(request.endDate)}</td>
+                  <td style={styles.td}>{request.reason}</td>
+                  <td style={styles.td}>
+                    <span style={getStatusBadgeStyle(request.status)}>{request.status}</span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-        <div style={styles.pagination}>
-          <button style={styles.paginationBtn} disabled>Previous</button>
-          <button style={{...styles.paginationBtn, ...styles.paginationActive}}>1</button>
-          <button style={styles.paginationBtn}>2</button>
-          <button style={styles.paginationBtn}>Next</button>
-        </div>
+        {leaveRequests.length > 0 && (
+          <div style={styles.pagination}>
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(requestsSafePage === 1 ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setRequestsPage(Math.max(1, requestsSafePage - 1))}
+              disabled={requestsSafePage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({length: requestsTotalPages}, (_, i) => i + 1).map(p => (
+              <button 
+                key={p}
+                style={{
+                  ...styles.paginationBtn,
+                  ...(p === requestsSafePage ? styles.paginationActive : {})
+                }}
+                onClick={() => setRequestsPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(requestsSafePage === requestsTotalPages ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setRequestsPage(Math.min(requestsTotalPages, requestsSafePage + 1))}
+              disabled={requestsSafePage === requestsTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Leave History Section */}
@@ -144,36 +336,84 @@ export default function RequestLeave() {
             </tr>
           </thead>
           <tbody>
-            {leaveHistory.map((history, index) => (
-              <tr key={history.id} style={styles.bodyRow}>
-                <td style={styles.td}>{index + 1}</td>
-                <td style={styles.td}>{history.dateOfRequest}</td>
-                <td style={styles.td}>{history.startDate}</td>
-                <td style={styles.td}>{history.endDate}</td>
-                <td style={styles.td}>{history.reason}</td>
-                <td style={styles.td}>{history.approvedBy}</td>
+            {requestsLoading ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px'}}>
+                  Loading...
+                </td>
               </tr>
-            ))}
+            ) : leaveHistory.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px', color: '#6b7280'}}>
+                  No leave history available
+                </td>
+              </tr>
+            ) : (
+              historyPageData.map((history, index) => (
+                <tr key={history.id} style={styles.bodyRow}>
+                  <td style={styles.td}>{historyStart + index + 1}</td>
+                  <td style={styles.td}>{formatDate(history.createdAt)}</td>
+                  <td style={styles.td}>{formatDate(history.startDate)}</td>
+                  <td style={styles.td}>{formatDate(history.endDate)}</td>
+                  <td style={styles.td}>{history.reason}</td>
+                  <td style={styles.td}>{history.approvedByName || 'N/A'}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-        <div style={styles.pagination}>
-          <button style={styles.paginationBtn} disabled>Previous</button>
-          <button style={{...styles.paginationBtn, ...styles.paginationActive}}>1</button>
-          <button style={styles.paginationBtn}>2</button>
-          <button style={styles.paginationBtn}>Next</button>
-        </div>
+        {leaveHistory.length > 0 && (
+          <div style={styles.pagination}>
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(historySafePage === 1 ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setHistoryPage(Math.max(1, historySafePage - 1))}
+              disabled={historySafePage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({length: historyTotalPages}, (_, i) => i + 1).map(p => (
+              <button 
+                key={p}
+                style={{
+                  ...styles.paginationBtn,
+                  ...(p === historySafePage ? styles.paginationActive : {})
+                }}
+                onClick={() => setHistoryPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+            <button 
+              style={{
+                ...styles.paginationBtn,
+                ...(historySafePage === historyTotalPages ? {opacity: 0.5, cursor: 'not-allowed'} : {})
+              }}
+              onClick={() => setHistoryPage(Math.min(historyTotalPages, historySafePage + 1))}
+              disabled={historySafePage === historyTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Request Leave Modal */}
       {showModal && (
         <RequestLeaveModal 
           onClose={() => setShowModal(false)}
-          onSubmit={(data) => {
-            console.log('Submit leave request:', data);
-            setShowModal(false);
-            setShowSuccessPopup(true);
-            // TODO: API call to submit request
+          onSubmit={async (data) => {
+            try {
+              await submitLeaveRequest(data);
+              setShowModal(false);
+              setShowSuccessPopup(true);
+            } catch (error) {
+              alert('Failed to submit leave request: ' + error.message);
+            }
           }}
+          leaveBalance={leaveBalance}
         />
       )}
 
@@ -201,12 +441,35 @@ function SuccessPopup({ onClose }) {
   );
 }
 
-function RequestLeaveModal({ onClose, onSubmit }) {
+function RequestLeaveModal({ onClose, onSubmit, leaveBalance }) {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [error, setError] = useState('');
+  const [balanceError, setBalanceError] = useState('');
+  const [isExceeded, setIsExceeded] = useState(false);
+
+  // Calculate requested days and validate against balance
+  useEffect(() => {
+    if (fromDate && toDate) {
+      const requestedDays = calculateWeekdays(fromDate, toDate);
+      const remainingDays = leaveBalance.totalDays - leaveBalance.usedDays;
+      
+      if (requestedDays > remainingDays) {
+        setBalanceError(
+          
+        );
+        setIsExceeded(true);
+      } else {
+        setBalanceError('');
+        setIsExceeded(false);
+      }
+    } else {
+      setBalanceError('');
+      setIsExceeded(false);
+    }
+  }, [fromDate, toDate, leaveBalance]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -225,13 +488,22 @@ function RequestLeaveModal({ onClose, onSubmit }) {
       return;
     }
 
+    // Validate leave balance
+    const requestedDays = calculateWeekdays(fromDate, toDate);
+    const remainingDays = leaveBalance.totalDays - leaveBalance.usedDays;
+    
+    if (requestedDays > remainingDays) {
+      setError('Cannot submit. You have exceeded your available leave days.');
+      return;
+    }
+
     onSubmit({ fromDate, toDate, reason, additionalDetails });
   };
 
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
       <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-        <h2 style={styles.modalTitle}>Resignation Request</h2>
+        <h2 style={styles.modalTitle}>Leave Request</h2>
         
         <form onSubmit={handleSubmit}>
           <div style={styles.modalSection}>
@@ -266,13 +538,14 @@ function RequestLeaveModal({ onClose, onSubmit }) {
             </div>
             
             {error && <div style={styles.errorText}>* {error}</div>}
+            {isExceeded && <div style={styles.errorText}>*leave day exceeded</div>}
           </div>
 
           <div style={styles.modalSection}>
-            <div style={styles.sectionLabel}>Resignation Details</div>
+            <div style={styles.sectionLabel}>Leave Details</div>
             
             <label style={styles.label}>
-              Reason for Resignation <span style={styles.required}>*</span>
+              Reason for Leave <span style={styles.required}>*</span>
             </label>
             <select
               value={reason}
@@ -291,17 +564,23 @@ function RequestLeaveModal({ onClose, onSubmit }) {
             <textarea
               value={additionalDetails}
               onChange={(e) => setAdditionalDetails(e.target.value)}
-              placeholder="Please provide additional details about your resignation..."
+              placeholder="Please provide additional details about your leave request..."
               style={styles.textarea}
               rows={4}
             />
+            
+            {balanceError && <div style={styles.errorText}>* {balanceError}</div>}
           </div>
 
           <div style={styles.modalActions}>
             <button type="button" onClick={onClose} style={styles.cancelBtn}>
               Cancel
             </button>
-            <button type="submit" style={styles.submitBtn}>
+            <button 
+              type="submit" 
+              style={isExceeded ? styles.submitBtnDisabled : styles.submitBtn}
+              disabled={isExceeded}
+            >
               Submit Request
             </button>
           </div>
@@ -546,6 +825,18 @@ const styles = {
     color: '#fff',
     cursor: 'pointer',
     boxShadow: '0 2px 4px rgba(255, 106, 0, 0.2)',
+  },
+  submitBtnDisabled: {
+    background: '#ff6a00',
+    border: 'none',
+    borderRadius: 8,
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#fff',
+    cursor: 'not-allowed',
+    boxShadow: '0 2px 4px rgba(255, 106, 0, 0.2)',
+    opacity: 0.6,
   },
   
   // Success Popup styles
