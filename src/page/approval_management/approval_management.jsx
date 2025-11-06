@@ -265,7 +265,7 @@ function formatDateTime(dt){
 function Table({ data, showActions = false, emptyText, onView = () => {}, onAccept = () => {}, onDeny = () => {} }) {
   const [page, setPage] = useState(1);
   const pageSize = 2;
-  const totalPages = Math.min(2, Math.max(1, Math.ceil(data.length / pageSize)));
+  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;
   const pageData = data.slice(start, start + pageSize);
